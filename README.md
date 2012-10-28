@@ -1,4 +1,4 @@
-holy_batman
+OSD Project
 ===========
 *le magnificent OSD project
 
