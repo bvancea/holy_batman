@@ -7,6 +7,7 @@
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
+#include "threads/alarm.h"
   
 /* See [8254] for hardware details of the 8254 timer chip. */
 
@@ -37,6 +38,7 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+  alarm_handler_init();
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -89,11 +91,14 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
+  if(ticks <=0 )
+	  return;
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+  /*while (timer_elapsed (start) < ticks)
+    thread_yield ();*/
+  add_alarm(thread_current(), ticks, start);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -172,6 +177,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+  update_alarms(ticks);
   //printf("Time is %d\n", ticks);
 }
 
