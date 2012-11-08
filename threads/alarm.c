@@ -38,12 +38,10 @@ void update_alarms(int64_t ticks){
          e = list_next (e))
     {
       struct alarm *alm = list_entry (e, struct alarm, elem);
-      //printf("time left to wake up for %i - %i\n",alm->th->tid,alm->start_time + alm->sleep_time - ticks);
       if(alm->isOn) 
       {
         if(alm->sleep_time <= 0 ) 
         {
-          //printf("time left to wake up %i\n",alm->start_time + alm->sleep_time - ticks);
           alm->isOn=false;
           //printf("unblocking thread %i at %i\n",alm->th->tid,alm->sleep_time);
           thread_unblock(alm->th);
