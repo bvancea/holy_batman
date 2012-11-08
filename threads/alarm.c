@@ -38,18 +38,15 @@ void update_alarms(int64_t ticks){
          e = list_next (e))
     {
       struct alarm *alm = list_entry (e, struct alarm, elem);
-      if(alm->isOn) 
+      if(alm->sleep_time <= 0 ) 
       {
-        if(alm->sleep_time <= 0 ) 
-        {
-          alm->isOn=false;
-          //printf("unblocking thread %i at %i\n",alm->th->tid,alm->sleep_time);
-          thread_unblock(alm->th);
-        }
-        else
-          alm->sleep_time--;
+        alm->isOn=false;
+        //printf("unblocking thread %i at %i\n",alm->th->tid,alm->sleep_time);
+        thread_unblock(alm->th);
       }
-    }
+      else
+        alm->sleep_time--;
+      }
   }
 
   // delete elapsed alarms
