@@ -98,7 +98,7 @@ timer_sleep (int64_t ticks)
   ASSERT (intr_get_level () == INTR_ON);
   /*while (timer_elapsed (start) < ticks)
     thread_yield ();*/
-  add_alarm(thread_current(), ticks, start);
+  add_alarm(thread_current(), ticks);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -170,14 +170,14 @@ timer_print_stats (void)
 {
   printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
-
+
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
-  thread_tick ();
   update_alarms(ticks);
+  thread_tick ();
   //printf("Time is %d\n", ticks);
 }
 
