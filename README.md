@@ -2,4 +2,4 @@ OSD Project
 ===========
 *le magnificent OSD project
 
-*le lol
+*le advanced-scheduler branch
