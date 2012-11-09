@@ -93,6 +93,11 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
+    struct list locks_hold;
+    //struct lock blocked_by;
+    struct list donations;
+
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -103,6 +108,15 @@ struct thread
 
     tid_t pid;							/* Parent identifier */
   };
+
+struct donation {
+	struct thread *donor;
+	struct thread *receiver;
+	struct lock *donation_lock;
+	int donated_priority;
+	struct list_elem elem;			/* Mark this as a list element */
+};
+
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -134,6 +148,8 @@ void thread_foreach (thread_action_func *, void *);
 void thread_ready_foreach (thread_action_func *, void *);
 
 int thread_get_priority (void);
+int thread_get_priority_from (struct thread *t);
+
 void thread_set_priority (int);
 
 int thread_get_nice (void);
@@ -141,8 +157,17 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
-
 char* thread_status(enum thread_status status);
+list_less_func thread_priority_comparison;
+list_less_func donation_priority_comparison;
 
+void thread_donate_priority(struct thread* donor, struct thread *receiver, struct lock* l);
+void thread_remove_donation(struct lock *l);
+
+void print_thread (struct thread* t, void *aux);
+
+static bool
+thread_insert_less_head (const struct list_elem *lhs, const struct list_elem *rhs, void *aux UNUSED);
+void thread_yield_head (struct thread *cur);
 
 #endif /* threads/thread.h */
