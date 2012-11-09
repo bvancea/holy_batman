@@ -8,6 +8,7 @@ Done by now
 	- int recent_cpu;
 - added the following global variable:
 	- int avg_load;
+- modified the getter and setter functions accordingly;
 
 Important
 ---------
