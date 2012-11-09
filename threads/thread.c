@@ -327,7 +327,7 @@ thread_yield (void)
   schedule ();
   intr_set_level (old_level);
 
-  printf("Time is %d\n", timer_ticks());
+  //printf("Time is %d\n", timer_ticks());
 }
 
 /* Invoke function 'func' on all threads, passing along 'aux'.
@@ -380,22 +380,30 @@ thread_get_priority (void)
 void
 thread_set_nice (int nice UNUSED) 
 {
-  /* Not yet implemented. */
+#ifdef ADVANCED_SCHEDULING
+  thread_current()->nice = nice;
+#endif
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+#ifdef ADVANCED_SCHEDULING
+  return thread_current()->nice;
+#endif
+  
+	return 0;
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) 
 {
-  /* Not yet implemented. */
+#ifdef ADVANCED_SCHEDULING
+  return load_average;
+#endif
+
   return 0;
 }
 
@@ -403,10 +411,13 @@ thread_get_load_avg (void)
 int
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+#ifdef ADVANCED_SCHEDULING
+  return thread_current()->recent_cpu; // * 100;
+#endif
+
+	return 0;
 }
-
+
 /* Idle thread.  Executes when no other thread is ready to run.
 
    The idle thread is initially put on the ready list by
@@ -455,7 +466,7 @@ kernel_thread (thread_func *function, void *aux)
   function (aux);       /* Execute the thread function. */
   thread_exit ();       /* If function() returns, kill the thread. */
 }
-
+
 /* Returns the running thread. */
 struct thread *
 running_thread (void) 
@@ -587,7 +598,7 @@ schedule (void)
   ASSERT (is_thread (next));
 
   if (cur != next)
-prev = switch_threads (cur, next);
+		prev = switch_threads (cur, next);
 
   thread_schedule_tail (prev);
 }
@@ -608,7 +619,7 @@ allocate_tid (void)
 
   return tid;
 }
-
+
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);

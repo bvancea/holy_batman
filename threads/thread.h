@@ -80,6 +80,12 @@ typedef int tid_t;
    only because they are mutually exclusive: only a thread in the
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
+#define ADVANCED_SCHEDULING
+
+#ifdef ADVANCED_SCHEDULING
+int load_average;												/* System's load */
+#endif
+
 struct thread
   {
     /* Owned by thread.c. */
@@ -89,6 +95,12 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
+
+#ifdef ADVANCED_SCHEDULING
+		/* ADVANCED SCHEDULER */
+		int nice;														/* The niceness of the thread */
+		int recent_cpu;											/* The amount of time used recently by the thread */
+#endif
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
