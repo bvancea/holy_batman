@@ -224,10 +224,13 @@ thread_create (const char *name, int priority,
 
   /* No nice parameter in the thread_create function, assign a default value. */
   t->nice = NICE_DEFAULT;
+ 
+#ifdef ADVANCED_SCHEDULING
   if (thread_mlfqs)
-	thread_compute_priority(t);
+	  thread_compute_priority(t);
   if (t->priority > thread_current()->priority)
-	thread_yield_(thread_current());
+	  thread_yield_(thread_current());
+#endif
 
   return tid;
 }
@@ -265,7 +268,11 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
+#ifdef ADVANCED_SCHEDULING
+  list_insert_ordered (&ready_list, &t->elem, thread_insert_less_tail, NULL);
+#else
   list_push_back (&ready_list, &t->elem);
+#endif
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -336,7 +343,11 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
+#ifdef ADVANCED_SCHEDULING
+    list_insert_ordered (&ready_list, &cur->elem, thread_insert_less_tail, NULL);
+#else
     list_push_back (&ready_list, &cur->elem);
+#endif
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
