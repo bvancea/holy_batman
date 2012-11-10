@@ -536,7 +536,6 @@ void thread_compute_load_avg(void)
     nr_of_ready_threads = list_size(&ready_list) + 1;
   else
     nr_of_ready_threads = list_size(&ready_list);
-  
   load_average = FP_MUL (CONVERT_TO_FP (59) / 60, load_average) + CONVERT_TO_FP(1) / 60 * nr_of_ready_threads;
 }
 
@@ -545,7 +544,7 @@ int
 thread_get_recent_cpu (void) 
 {
   if (thread_mlfqs) {
-    return CONVERT_TO_INT_NEAR(100 * thread_current()->recent_cpu); 
+    return CONVERT_TO_INT_ZERO(100 * thread_current()->recent_cpu); 
   }
 
 	return 0;

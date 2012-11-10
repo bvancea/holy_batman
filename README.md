@@ -1,14 +1,9 @@
 OSD Project
 ===========
 
-Done by now
------------
-- added the following fields to the struc thread:
-	- int nice;
-	- int recent_cpu;
-- added the following global variable:
-	- int avg_load;
-- modified the getter and setter functions accordingly;
+Very important
+---------
+Tests for this branch of the project have been run on QEMU instead of Bochs.
 
 Important
 ---------
@@ -19,7 +14,3 @@ All code should be added between ifdef and endif to make merging easier.
 code
 
 <b>#endif</b>
-
-
-
-
