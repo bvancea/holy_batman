@@ -53,7 +53,7 @@ static long long kernel_ticks;  /* # of timer ticks in kernel threads. */
 static long long user_ticks;    /* # of timer ticks in user programs. */
 
 /* Scheduling. */
-#define TIME_SLICE 4            /* # of timer ticks to give each thread. */
+#define TIME_SLICE 10            /* # of timer ticks to give each thread. */
 static unsigned thread_ticks;   /* # of timer ticks since last yield. */
 
 /* If false (default), use round-robin scheduler.
@@ -72,6 +72,7 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
+static void thread_dynamic_priority (struct thread *t);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -94,6 +95,8 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
+
+  load_average = 0;
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -138,7 +141,11 @@ thread_tick (void)
 
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
+  {
+    // compute system load average
+    // 
     intr_yield_on_return ();
+  }
 }
 
 /* Prints thread statistics. */
@@ -214,6 +221,13 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+
+  /* No nice parameter in the thread_create function, assign a default value. */
+  t->nice = NICE_DEFAULT;
+  if (thread_mlfqs)
+	thread_compute_priority(t);
+  if (t->priority > thread_current()->priority)
+	thread_yield_(thread_current());
 
   return tid;
 }
@@ -330,6 +344,10 @@ thread_yield (void)
   //printf("Time is %d\n", timer_ticks());
 }
 
+void thread_yield_ (struct thread *t)
+{
+}
+
 /* Invoke function 'func' on all threads, passing along 'aux'.
    This function must be called with interrupts off. */
 void
@@ -378,7 +396,7 @@ thread_get_priority (void)
 
 /* Sets the current thread's nice value to NICE. */
 void
-thread_set_nice (int nice UNUSED) 
+thread_set_nice (int nice) 
 {
 #ifdef ADVANCED_SCHEDULING
   thread_current()->nice = nice;
@@ -646,4 +664,10 @@ char* thread_status(enum thread_status status) {
 	}
 
 	return str_status;
+}
+
+bool thread_priority_compare (const struct list_elem *l, const struct list_elem *r, void *aux UNUSED) {
+   struct thread *thr1 = list_entry(l, struct thread, elem);
+   struct thread *thr2 = list_entry(r, struct thread, elem);
+   return thr1->priority > thr2->priority;
 }
