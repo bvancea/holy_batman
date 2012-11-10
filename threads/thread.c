@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/thread_arithmetic.h"
 #include "devices/timer.h"
 
 #ifdef USERPROG
@@ -225,7 +226,7 @@ thread_create (const char *name, int priority,
   /* No nice parameter in the thread_create function, assign a default value. */
   t->nice = NICE_DEFAULT;
   if (thread_mlfqs)
-	thread_compute_priority(t);
+	thread_dynamic_priority(t);
   if (t->priority > thread_current()->priority)
 	thread_yield_(thread_current());
 
@@ -330,22 +331,26 @@ void
 thread_yield (void) 
 {
   struct thread *cur = thread_current ();
-  enum intr_level old_level;
-  
-  ASSERT (!intr_context ());
-
-  old_level = intr_disable ();
-  if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
-  cur->status = THREAD_READY;
-  schedule ();
-  intr_set_level (old_level);
-
+  thread_yield_ (cur);
   //printf("Time is %d\n", timer_ticks());
 }
 
 void thread_yield_ (struct thread *t)
 {
+  enum intr_level old_level;
+  
+  ASSERT (!intr_context ());
+
+  old_level = intr_disable ();
+  if (t != idle_thread) 
+#ifndef ADVANCED_SCHEDULING
+    list_push_back (&ready_list, &t->elem);
+#else
+    list_insert_ordered(&ready_list, &t->elem, thread_priority_compare, NULL);
+#endif
+  t->status = THREAD_READY;
+  schedule ();
+  intr_set_level (old_level);
 }
 
 /* Invoke function 'func' on all threads, passing along 'aux'.
@@ -363,6 +368,10 @@ thread_foreach (thread_action_func *func, void *aux)
       struct thread *t = list_entry (e, struct thread, allelem);
       func (t, aux);
     }
+}
+
+static void thread_dynamic_priority(struct thread *t)
+{
 }
 
 void
