@@ -54,7 +54,7 @@ static long long kernel_ticks;  /* # of timer ticks in kernel threads. */
 static long long user_ticks;    /* # of timer ticks in user programs. */
 
 /* Scheduling. */
-#define TIME_SLICE 10            /* # of timer ticks to give each thread. */
+#define TIME_SLICE 4            /* # of timer ticks to give each thread. */
 static unsigned thread_ticks;   /* # of timer ticks since last yield. */
 
 /* If false (default), use round-robin scheduler.
@@ -233,12 +233,12 @@ thread_create (const char *name, int priority,
   /* No nice parameter in the thread_create function, assign a default value. */
   t->nice = NICE_DEFAULT;
  
-#ifdef ADVANCED_SCHEDULING
-  if (thread_mlfqs)
+  if (thread_mlfqs) {
 	  thread_dynamic_priority(t);
-  if (t->priority > thread_current()->priority)
-	  thread_yield_(thread_current());
-#endif
+	  
+    if (priority > thread_current()->priority)
+	    thread_yield_(thread_current());
+	}
 
   return tid;
 }
@@ -276,11 +276,13 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-#ifdef ADVANCED_SCHEDULING
-  list_insert_ordered (&ready_list, &t->elem, thread_priority_compare, NULL);
-#else
-  list_push_back (&ready_list, &t->elem);
-#endif
+  
+  if (thread_mlfqs) {
+    list_insert_ordered (&ready_list, &t->elem, thread_priority_compare, NULL);
+  } else {
+    list_push_back (&ready_list, &t->elem);
+  }
+  
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -344,8 +346,23 @@ thread_exit (void)
 void
 thread_yield (void) 
 {
-  struct thread *cur = thread_current ();
-  thread_yield_ (cur);
+  struct thread *t = thread_current ();
+  enum intr_level old_level;
+  
+  ASSERT (!intr_context ());
+  old_level = intr_disable ();
+
+  if (t != idle_thread) {
+    if (thread_mlfqs) { 
+      list_insert_ordered(&ready_list, &t->elem, thread_priority_compare, NULL);
+    } else {
+      list_push_back (&ready_list, &t->elem);
+    }
+  }
+
+  t->status = THREAD_READY;
+  schedule ();
+  intr_set_level (old_level);
 }
 
 void thread_yield_ (struct thread *t)
@@ -353,15 +370,16 @@ void thread_yield_ (struct thread *t)
   enum intr_level old_level;
   
   ASSERT (!intr_context ());
-
   old_level = intr_disable ();
 
-  if (t != idle_thread) 
-#ifndef ADVANCED_SCHEDULING
-    list_push_back (&ready_list, &t->elem);
-#else
-    list_insert_ordered(&ready_list, &t->elem, thread_priority_insert_head, NULL);
-#endif
+  if (t != idle_thread) {
+    if (thread_mlfqs) { 
+      list_insert_ordered(&ready_list, &t->elem, thread_priority_compare, NULL);
+    } else {
+      list_push_back (&ready_list, &t->elem);
+    }
+  }
+
   t->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -402,26 +420,14 @@ void recompute_all_priorities(void)
   struct list_elem *elem;
   struct thread *t;
   elem = list_begin(&all_list);
+  
   while (elem != list_end(&all_list))
   {
     t = list_entry(elem, struct thread, allelem);
     thread_dynamic_priority(t);
     elem = list_next(elem);
   }
-  sort_thread_list(&all_list);
-}
-
-void recompute_ready_priorities(void)
-{
-  struct list_elem *elem;
-  struct thread *t;
-  elem = list_begin(&ready_list);
-  while (elem != list_end(&all_list))
-  {
-    t = list_entry(elem, struct thread, elem);
-    thread_dynamic_priority(t);
-    elem = list_next(elem);
-  }
+  
   sort_thread_list(&ready_list);
 }
 
@@ -465,7 +471,19 @@ thread_ready_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
+  struct thread *current = thread_current();
+
+  current->priority = new_priority;
+  
+  if (thread_mlfqs) {
+    if (current->status == THREAD_READY) /* Re-order the ready-list */
+      {
+        list_remove (&current->elem);
+        list_insert_ordered (&ready_list, &current->elem, thread_priority_compare, NULL);
+      }
+    else if (current->status == THREAD_RUNNING && list_entry (list_begin (&ready_list), struct thread, elem)->priority > new_priority)
+      thread_yield_ (current);
+  }
 }
 
 /* Returns the current thread's priority. */
@@ -479,21 +497,23 @@ thread_get_priority (void)
 void
 thread_set_nice (int nice) 
 {
-#ifdef ADVANCED_SCHEDULING
-  ASSERT (nice >= NICE_MIN && nice <= NICE_MAX);
-  thread_current()->nice = nice;
-  thread_compute_recent_cpu(thread_current());
-  thread_dynamic_priority(thread_current());
-#endif
+  if (thread_mlfqs) {
+    ASSERT (nice >= NICE_MIN && nice <= NICE_MAX);
+    struct thread *current = thread_current();
+    
+    current->nice = nice;
+    thread_compute_recent_cpu(current);
+    thread_dynamic_priority(current);
+  }
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
 {
-#ifdef ADVANCED_SCHEDULING
-  return thread_current()->nice;
-#endif
+  if (thread_mlfqs) {
+    return thread_current()->nice;
+  }
   
 	return 0;
 }
@@ -502,9 +522,9 @@ thread_get_nice (void)
 int
 thread_get_load_avg (void) 
 {
-#ifdef ADVANCED_SCHEDULING
-  return CONVERT_TO_INT_NEAR (100 * load_average);
-#endif
+  if (thread_mlfqs) {
+    return CONVERT_TO_INT_NEAR (100 * load_average);
+  }
 
   return 0;
 }
@@ -524,10 +544,9 @@ void thread_compute_load_avg(void)
 int
 thread_get_recent_cpu (void) 
 {
-#ifdef ADVANCED_SCHEDULING
-  thread_compute_recent_cpu(thread_current());
-  return CONVERT_TO_INT_NEAR(100 * thread_current()->recent_cpu); 
-#endif
+  if (thread_mlfqs) {
+    return CONVERT_TO_INT_NEAR(100 * thread_current()->recent_cpu); 
+  }
 
 	return 0;
 }
@@ -615,9 +634,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
-#ifndef ADVANCED_SCHEDULER
-  t->priority = priority;
-#else
+
   if (thread_mlfqs)
   {
     t->nice = NICE_DEFAULT;
@@ -625,8 +642,10 @@ init_thread (struct thread *t, const char *name, int priority)
       t->recent_cpu = 0;
     else
       t->recent_cpu = thread_get_recent_cpu();
-  }  
-#endif
+  } else {
+    t->priority = priority;
+  }
+  
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
 }
@@ -678,7 +697,6 @@ void
 thread_schedule_tail (struct thread *prev)
 {
   struct thread *cur = running_thread ();
-  
   ASSERT (intr_get_level () == INTR_OFF);
 
   /* Mark us as running. */

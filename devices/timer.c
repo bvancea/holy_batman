@@ -166,7 +166,7 @@ timer_print_stats (void)
 {
   printf ("Timer: %"PRId64" ticks\n", timer_ticks ());
 }
-
+
 /* Timer interrupt handler. */
 static void
 timer_interrupt (struct intr_frame *args UNUSED)
@@ -179,9 +179,11 @@ timer_interrupt (struct intr_frame *args UNUSED)
     thread_current()->recent_cpu = INT_ADD(thread_current()->recent_cpu, 1);
     if (ticks % TIMER_FREQ == 0)
     {
+      printf("Recomputing!\n");
       thread_compute_load_avg();
       recompute_all_recent_cpu();
     }
+    
     if (ticks % 4 == 3)
     {
       recompute_all_priorities();
