@@ -270,7 +270,7 @@ thread_unblock (struct thread *t)
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
 #ifdef ADVANCED_SCHEDULING
-  list_insert_ordered (&ready_list, &t->elem, thread_insert_less_tail, NULL);
+  list_insert_ordered (&ready_list, &t->elem, thread_priority_compare, NULL);
 #else
   list_push_back (&ready_list, &t->elem);
 #endif
