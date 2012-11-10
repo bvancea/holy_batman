@@ -74,6 +74,7 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 static void thread_dynamic_priority (struct thread *t);
+static void thread_compute_recent_cpu (struct thread *t);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -382,6 +383,10 @@ static void thread_dynamic_priority(struct thread *t)
 {
 }
 
+static void thread_compute_recent_cpu(struct thread *t)
+{
+}
+
 void
 thread_ready_foreach (thread_action_func *func, void *aux)
 {
@@ -416,7 +421,10 @@ void
 thread_set_nice (int nice) 
 {
 #ifdef ADVANCED_SCHEDULING
+  ASSERT (nice >= NICE_MIN && nice <= NICE_MAX);
   thread_current()->nice = nice;
+  thread_compute_recent_cpu(thread_current());
+  thread_dynamic_priority(thread_current());
 #endif
 }
 
