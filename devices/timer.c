@@ -179,7 +179,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
     thread_current()->recent_cpu = INT_ADD(thread_current()->recent_cpu, 1);
     if (ticks % TIMER_FREQ == 0)
     {
-      printf("Recomputing!\n");
       thread_compute_load_avg();
       recompute_all_recent_cpu();
     }
