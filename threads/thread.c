@@ -73,8 +73,15 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
-static void thread_dynamic_priority (struct thread *t);
-static void thread_compute_recent_cpu (struct thread *t);
+static void thread_dynamic_priority (struct thread *);
+static void thread_compute_recent_cpu (struct thread *);
+void thread_compute_load_avg (void);
+void sort_thread_list (struct list *);
+void recompute_all_priorities(void);
+void recompute_all_recent_cpu(void);
+bool thread_priority_insert_head(const struct list_elem *, const struct list_elem *, void *);
+bool thread_priority_insert_tail(const struct list_elem *, const struct list_elem *, void *);
+
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -145,7 +152,6 @@ thread_tick (void)
   if (++thread_ticks >= TIME_SLICE)
   {
     // compute system load average
-    // 
     intr_yield_on_return ();
   }
 }
@@ -340,7 +346,6 @@ thread_yield (void)
 {
   struct thread *cur = thread_current ();
   thread_yield_ (cur);
-  //printf("Time is %d\n", timer_ticks());
 }
 
 void thread_yield_ (struct thread *t)
@@ -355,7 +360,7 @@ void thread_yield_ (struct thread *t)
 #ifndef ADVANCED_SCHEDULING
     list_push_back (&ready_list, &t->elem);
 #else
-    list_insert_ordered(&ready_list, &t->elem, thread_priority_compare, NULL);
+    list_insert_ordered(&ready_list, &t->elem, thread_priority_insert_head, NULL);
 #endif
   t->status = THREAD_READY;
   schedule ();
@@ -379,12 +384,66 @@ thread_foreach (thread_action_func *func, void *aux)
     }
 }
 
+void recompute_all_recent_cpu(void)
+{
+  struct list_elem *elem;
+  struct thread *t;
+  elem = list_begin(&all_list);
+  while (elem != list_end(&all_list))
+  {
+    t = list_entry(elem, struct thread, allelem);
+    thread_compute_recent_cpu(t);
+    elem = list_next(elem);
+  }
+}
+
+void recompute_all_priorities(void)
+{
+  struct list_elem *elem;
+  struct thread *t;
+  elem = list_begin(&all_list);
+  while (elem != list_end(&all_list))
+  {
+    t = list_entry(elem, struct thread, allelem);
+    thread_dynamic_priority(t);
+    elem = list_next(elem);
+  }
+  sort_thread_list(&all_list);
+}
+
+void recompute_ready_priorities(void)
+{
+  struct list_elem *elem;
+  struct thread *t;
+  elem = list_begin(&ready_list);
+  while (elem != list_end(&all_list))
+  {
+    t = list_entry(elem, struct thread, elem);
+    thread_dynamic_priority(t);
+    elem = list_next(elem);
+  }
+  sort_thread_list(&ready_list);
+}
+
 static void thread_dynamic_priority(struct thread *t)
 {
+  ASSERT (is_thread(t));
+  if (t == idle_thread) return;
+  
+  t->priority = PRI_MAX - CONVERT_TO_INT_NEAR (t->recent_cpu / 4) - t->nice * 2;
+  if (t->priority > PRI_MAX)
+    t->priority = PRI_MAX;
+  else if (t->priority < PRI_MIN)
+    t->priority = PRI_MIN;
 }
 
 static void thread_compute_recent_cpu(struct thread *t)
 {
+  ASSERT (is_thread(t));
+  if (t == idle_thread) return;
+  
+  int load = 2 * load_average;
+  t->recent_cpu = INT_ADD (FP_MUL (FP_DIV (load, INT_ADD(load, 1)), t->recent_cpu), t->nice);
 }
 
 void
@@ -444,10 +503,21 @@ int
 thread_get_load_avg (void) 
 {
 #ifdef ADVANCED_SCHEDULING
-  return load_average;
+  return CONVERT_TO_INT_NEAR (100 * load_average);
 #endif
 
   return 0;
+}
+
+void thread_compute_load_avg(void)
+{
+  int nr_of_ready_threads;
+  if (thread_current() != idle_thread)
+    nr_of_ready_threads = list_size(&ready_list) + 1;
+  else
+    nr_of_ready_threads = list_size(&ready_list);
+  
+  load_average = FP_MUL (CONVERT_TO_FP (59) / 60, load_average) + CONVERT_TO_FP(1) / 60 * nr_of_ready_threads;
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
@@ -455,7 +525,8 @@ int
 thread_get_recent_cpu (void) 
 {
 #ifdef ADVANCED_SCHEDULING
-  return thread_current()->recent_cpu; // * 100;
+  thread_compute_recent_cpu(thread_current());
+  return CONVERT_TO_INT_NEAR(100 * thread_current()->recent_cpu); 
 #endif
 
 	return 0;
@@ -544,7 +615,18 @@ init_thread (struct thread *t, const char *name, int priority)
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
+#ifndef ADVANCED_SCHEDULER
   t->priority = priority;
+#else
+  if (thread_mlfqs)
+  {
+    t->nice = NICE_DEFAULT;
+    if (t==initial_thread)
+      t->recent_cpu = 0;
+    else
+      t->recent_cpu = thread_get_recent_cpu();
+  }  
+#endif
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
 }
@@ -691,8 +773,24 @@ char* thread_status(enum thread_status status) {
 	return str_status;
 }
 
+void sort_thread_list (struct list *l)
+{
+  if (list_empty(l)) return;
+  list_sort(l, thread_priority_compare, NULL);
+}
+
 bool thread_priority_compare (const struct list_elem *l, const struct list_elem *r, void *aux UNUSED) {
    struct thread *thr1 = list_entry(l, struct thread, elem);
    struct thread *thr2 = list_entry(r, struct thread, elem);
    return thr1->priority > thr2->priority;
+}
+
+bool thread_priority_insert_head(const struct list_elem *l, const struct list_elem *r, void *aux UNUSED) {
+   struct thread *thr1 = list_entry(l, struct thread, elem);
+   struct thread *thr2 = list_entry(r, struct thread, elem);
+   return thr1->priority >= thr2->priority;
+}
+
+bool thread_priority_insert_tail(const struct list_elem *l, const struct list_elem *r, void *aux UNUSED) {
+   return thread_priority_compare(l, r, NULL);
 }

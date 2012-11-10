@@ -160,6 +160,12 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
+void thread_compute_load_avg (void);
+void sort_thread_list (struct list *);
+void recompute_all_priorities(void);
+void recompute_all_recent_cpu(void);
+
+
 list_less_func thread_priority_compare;
 
 char* thread_status(enum thread_status status);

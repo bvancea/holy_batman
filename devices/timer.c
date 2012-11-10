@@ -4,6 +4,7 @@
 #include <round.h>
 #include <stdio.h>
 #include "devices/pit.h"
+#include "threads/thread_arithmetic.h"
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
@@ -172,6 +173,21 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+  
+  if (thread_mlfqs)
+  {
+    thread_current()->recent_cpu = INT_ADD(thread_current()->recent_cpu, 1);
+    if (ticks % TIMER_FREQ == 0)
+    {
+      thread_compute_load_avg();
+      recompute_all_recent_cpu();
+    }
+    if (ticks % 4 == 3)
+    {
+      recompute_all_priorities();
+    }
+  }
+  
   //printf("Time is %d\n", ticks);
 }
 
