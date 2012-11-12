@@ -327,7 +327,7 @@ thread_yield (void)
   schedule ();
   intr_set_level (old_level);
 
-  printf("Time is %d\n", timer_ticks());
+  //printf("Time is %d\n", timer_ticks());
 }
 
 /* Invoke function 'func' on all threads, passing along 'aux'.
