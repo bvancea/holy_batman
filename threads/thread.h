@@ -24,6 +24,11 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+/* Thread nice values. */
+#define NICE_MIN -20
+#define NICE_DEFAULT 0
+#define NICE_MAX 20
+
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -80,6 +85,12 @@ typedef int tid_t;
    only because they are mutually exclusive: only a thread in the
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
+#define ADVANCED_SCHEDULING
+
+#ifdef ADVANCED_SCHEDULING
+int load_average;												/* System's load */
+#endif
+
 struct thread
   {
     /* Owned by thread.c. */
@@ -89,6 +100,12 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
+
+#ifdef ADVANCED_SCHEDULING
+		/* ADVANCED SCHEDULER */
+		int nice;														/* The niceness of the thread */
+		int recent_cpu;											/* The amount of time used recently by the thread */
+#endif
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -141,6 +158,7 @@ const char *thread_name (void);
 
 void thread_exit (void) NO_RETURN;
 void thread_yield (void);
+void thread_yield_ (struct thread *);
 
 /* Performs some operation on thread t, given auxiliary data AUX. */
 typedef void thread_action_func (struct thread *t, void *aux);
@@ -151,11 +169,20 @@ int thread_get_priority (void);
 int thread_get_priority_from (struct thread *t);
 
 void thread_set_priority (int);
+void thread_compute_priority (void);
 
 int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+void thread_compute_load_avg (void);
+void sort_thread_list (struct list *);
+void recompute_all_priorities(void);
+void recompute_all_recent_cpu(void);
+
+
+list_less_func thread_priority_compare;
 
 char* thread_status(enum thread_status status);
 list_less_func thread_priority_comparison;

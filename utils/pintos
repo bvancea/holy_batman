@@ -943,3 +943,4 @@ sub find_in_path {
     -x "$_/$program" and return $program foreach split (':', $ENV{PATH});
     return;
 }
+
