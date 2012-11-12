@@ -178,7 +178,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
   ticks++;
   update_alarms(ticks);
   thread_tick ();
-  //printf("Time is %d\n", ticks);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
