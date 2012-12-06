@@ -21,6 +21,17 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
+
+void extract_filename(char* src, char* tgt) {
+	int i, len = strlen(src);
+	for(i=0;i<len;i++) {
+		if(src[i] == ' ')
+			break;
+		tgt[i] = src[i];
+	}
+	tgt[i] = '\0';
+}
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -38,8 +49,26 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  // Argument parsing
+  // Alin
+  //----------------------------------
+  char *fn;
+
+  fn = malloc( strlen(file_name) + 1);
+  if(!fn) // malloc error
+    goto done;  
+
+  memcpy (fn, file_name, strlen (file_name) + 1);
+
+  // extract the name of the process, in order to give the thread a proper name
+  extract_filename(file_name, fn);
+  //----------------------------------
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (fn, PRI_DEFAULT, start_process, fn_copy);
+
+done:
+  free(fn);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -54,17 +83,87 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
+  //putbuf(file_name,strlen(file_name));
+
+  // Argument parsing
+  // Alin
+  //----------------------------------
+  char *token, *save_ptr;
+  void *start;
+  int argc, i;  
+  int *argv_off; /* Maximum of 2 arguments */
+  size_t file_name_len;
+  //----------------------------------
+
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+
+  // Argument parsing
+  // Alin
+  //----------------------------------  
+  argc = 0;
+  argv_off = malloc (32 * sizeof (int));
+  if (!argv_off)
+    goto exit;
+  file_name_len = strlen (file_name);
+  argv_off[0] = 0;
+  for (
+       token = strtok_r (file_name, " ", &save_ptr);
+       token != NULL;
+       token = strtok_r (NULL, " ", &save_ptr)
+       )
+        {
+          while (*(save_ptr) == ' ')
+            ++save_ptr;
+          argv_off[++argc] = save_ptr - file_name;
+        }
+  //printf("%d\n", argc);
+  //----------------------------------
+
   success = load (file_name, &if_.eip, &if_.esp);
+
+  // Argument parsing
+  // Alin
+  //----------------------------------
+  if (success)
+  {
+    if_.esp -= file_name_len + 1;
+    start = if_.esp;
+    memcpy (if_.esp, file_name, file_name_len + 1);
+    if_.esp -= 4 - (file_name_len + 1) % 4; /* alignment */
+    if_.esp -= 4;
+    *(int *)(if_.esp) = 0; /* argv[argc] == 0 */
+    /* Now pushing argv[x], and this is where the fun begins */
+    for (i = argc - 1; i >= 0; --i)
+    {
+      if_.esp -= 4;
+      *(void **)(if_.esp) = start + argv_off[i]; /* argv[x] */
+    }
+
+    if_.esp -= 4;
+    *(char **)(if_.esp) = (if_.esp + 4); /* argv */
+    if_.esp -= 4;
+    *(int *)(if_.esp) = argc;
+    if_.esp -= 4;
+    *(int *)(if_.esp) = 0; /* Fake return address */
+  }
+  else
+  {
+    free (argv_off);
+  exit:
+    thread_exit ();
+  }
+
+  free (argv_off);
+  //----------------------------------
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
-    thread_exit ();
+  /*if (!success) 
+    */
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
