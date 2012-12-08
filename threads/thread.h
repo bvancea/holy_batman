@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "threads/synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -23,6 +24,13 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
+
+#ifdef USERPROG
+// return status that shows process has been waited on already
+ #define INVALID_RET 0xdcdcdcdc
+// return status that shows process has been killed before returning, i.e. default return status is never altered after initialization
+ #define DEFAULT_RET 0xeeeeeeee
+#endif
 
 /* A kernel thread or user process.
 
@@ -96,6 +104,15 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+
+    struct list files;                  /* all opened files */
+    struct semaphore wait;
+    int retStatus;
+    struct thread *parent;
+    struct list children_list;
+    struct list_elem children_elems;
+    bool isTerminated;
+
 #endif
 
     /* Owned by thread.c. */
@@ -143,6 +160,7 @@ int thread_get_load_avg (void);
 
 
 char* thread_status(enum thread_status status);
+struct thread *get_thread_by_tid(tid_t tid);
 
 
 #endif /* threads/thread.h */

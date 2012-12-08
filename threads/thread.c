@@ -215,6 +215,19 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+#ifdef USERPROG
+  /* Initialize the list of open files for the current thread */
+  list_init (&t->files);
+  sema_init(&t->wait,0); // initialize semaphore for parent to wait upon
+  list_init(&t->children_list); // initialize children list
+  if (thread_current() != initial_thread)
+     list_push_back (&thread_current()->children_list, &t->children_elems);
+  t->parent = thread_current(); // make current thread this thread's parent
+  t->isTerminated = false; // thread is not terminated
+  t->retStatus = DEFAULT_RET; // return status initialized
+
+#endif
+
   return tid;
 }
 
@@ -296,9 +309,33 @@ thread_exit (void)
 {
   ASSERT (!intr_context ());
 
-#ifdef USERPROG
-  process_exit ();
-#endif
+  // Handle thread exit and take care of children - Victor
+  #ifdef USERPROG
+
+  /* Handle children */
+   struct thread *c_ch;
+   struct list_elem *current_child;
+
+   struct thread *cur = thread_current ();
+
+   for (current_child = list_begin(&cur->children_list); current_child != list_end(&cur->children_list);
+       current_child = list_next(current_child)) {
+     c_ch = list_entry(current_child, struct thread, children_elems);
+     if (c_ch->status == THREAD_BLOCKED && c_ch->isTerminated)
+       thread_unblock(c_ch);
+     else {
+         c_ch->parent = NULL;
+         list_remove(&c_ch->children_elems);
+       }
+   }
+
+   if ((cur->parent != NULL) && (cur->parent != initial_thread)) {
+     list_remove(&cur->children_elems);
+   }
+
+  // </Victor>
+    process_exit ();
+  #endif
 
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
@@ -612,6 +649,22 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+
+struct thread *get_thread_by_tid(tid_t tid) {
+	struct list_elem *f;
+	struct thread *ret;
+
+	ret = NULL;
+	for (f = list_begin(&all_list); f != list_end(&all_list); f = list_next(f)) {
+		ret = list_entry (f, struct thread, allelem);
+		ASSERT (is_thread (ret));
+		if (ret->tid == tid)
+			return ret;
+	}
+
+	return NULL;
+}
 
 char* thread_status(enum thread_status status) {
 	char* str_status=malloc(30);

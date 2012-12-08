@@ -67,6 +67,18 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (fn, PRI_DEFAULT, start_process, fn_copy);
 
+  // Wait for thread to load - Victor
+  struct thread *child = get_thread_by_tid(tid);
+  sema_down(&child->wait);
+  if (child->retStatus == -1)
+	tid = TID_ERROR;
+  while (child->status == THREAD_BLOCKED) {
+	thread_unblock(child);
+  }
+  if (child->retStatus = -1) {
+	process_wait(child->tid);
+  }
+
 done:
   free(fn);
   if (tid == TID_ERROR)
@@ -83,6 +95,7 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
+  struct thread *t = thread_current();
   //putbuf(file_name,strlen(file_name));
 
   // Argument parsing
@@ -120,7 +133,9 @@ start_process (void *file_name_)
             ++save_ptr;
           argv_off[++argc] = save_ptr - file_name;
         }
-  //printf("%d\n", argc);
+
+
+
   //----------------------------------
 
   success = load (file_name, &if_.eip, &if_.esp);
@@ -149,12 +164,25 @@ start_process (void *file_name_)
     *(int *)(if_.esp) = argc;
     if_.esp -= 4;
     *(int *)(if_.esp) = 0; /* Fake return address */
+
+    // this block of code repeats whether the process starts or not, we have to implement the semaphore between this process and its parent - Victor
+    sema_up(&t->wait);
+    intr_disable();
+    thread_block();
+    intr_enable();
   }
   else
   {
     free (argv_off);
   exit:
-    thread_exit ();
+	  // Victor
+		t->retStatus = -1;
+		sema_up(&t->wait);
+		intr_disable();
+		thread_block();
+		intr_enable();
+		// </Victor>
+		thread_exit();
   }
 
   free (argv_off);
@@ -184,16 +212,42 @@ start_process (void *file_name_)
 
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
-int
-process_wait (tid_t child_tid UNUSED) 
-{
-  return -1;
+int process_wait(tid_t child_tid) {
+	/*while(1);
+	 return -1;*/
+	struct thread *waiting;
+	int ret_status;
+	// check if child_tid is indeed the id of a child
+	waiting = get_thread_by_tid(child_tid);
+	if (waiting == NULL) {
+		return -1;
+	}
+	// check if child_tid is terminated
+	if (waiting->status == THREAD_DYING || waiting->retStatus == INVALID_RET) {
+		waiting->retStatus = INVALID_RET;
+		return -1;
+	}
+	ret_status = -1;
+	// if child_tid is terminated, return status
+	if (waiting->retStatus != INVALID_RET && waiting->retStatus != DEFAULT_RET) {
+		ret_status = waiting->retStatus;
+		waiting->retStatus = INVALID_RET;
+		return ret_status;
+	}
+	// if child_tid is running, wait for termination
+	sema_down(&waiting->wait);
+	ret_status = waiting->retStatus;
+
+	while (waiting->status == THREAD_BLOCKED)
+		thread_unblock(waiting);
+
+	waiting->retStatus = INVALID_RET; // prevent another thread from waiting on this process
+	return ret_status;
 }
 
 /* Free the current process's resources. */
 void
-process_exit (void)
-{
+process_exit (void) {
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
@@ -536,7 +590,7 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE;
+        *esp = PHYS_BASE - 12;
       else
         palloc_free_page (kpage);
     }
