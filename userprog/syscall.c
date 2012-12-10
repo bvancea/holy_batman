@@ -49,11 +49,11 @@ static void syscall_handler(struct intr_frame *f) {
 		thread_exit();
 	} else {
 		int syscall_no = ((int*) f->esp)[0];
-		/*
-		int argc = ((int*) f->esp)[1];
-		char* argv = ((char*) f->esp)[2];
-		char* command = ((char *) f->esp)[3];
-		printf("%d %d %s %s \n", syscall_no, argc, argv, command);*/
+		
+		/*int argc = ((int*) f->esp)[1];
+		char* argv = ((int*) f->esp)[2];
+		int command = ((int *) f->esp)[3];
+		printf("%d %d %s %d \n", syscall_no, argc, argv, command);*/
 
 		switch (syscall_no) {
 		case SYS_EXIT:
@@ -74,7 +74,7 @@ static void syscall_handler(struct intr_frame *f) {
 			break;
 		case SYS_CREATE:
 			//printf("SYS_CREATE system call!\n");
-			f->eax = syscall_create (((char*) f->esp)[1], ((unsigned*) f->esp)[1]);
+			f->eax = syscall_create (((char*) f->esp)[1], ((unsigned*) f->esp)[2]);
 			return;
 		case SYS_OPEN:
 			//printf("SYS_OPEN system call!\n");
@@ -89,14 +89,15 @@ static void syscall_handler(struct intr_frame *f) {
 			///int fd = ((int *) f->esp)[1];
 			//void *buffer = (f->esp + 2);
 			//unsigned length =((unsigned *) f->esp)[3];
-			f->eax = syscall_read (((int *) f->esp)[1],(f->esp + 2),((unsigned *) f->esp)[3]);
+			f->eax = syscall_read (((int *) f->esp)[1],((int*) f->esp)[2],((unsigned *) f->esp)[3]);
 			return;
 		case SYS_WRITE:
-			//printf("SYS_WRITE system call!\n");
+			//printf("SYS_WRITE system call %d!\n", sizeof(void*));
 			//int fd = ((int *) f->esp)[1];
 			//void *buffer = (f->esp + 2);
 			//unsigned length =((unsigned *) f->esp)[3];
-			f->eax = syscall_write (((int *) f->esp)[1],(f->esp + 2),((unsigned *) f->esp)[3]);
+
+			f->eax = syscall_write (((int *) f->esp)[1],((int*) f->esp)[2],((unsigned *) f->esp)[3]);
 			return;
 		case SYS_SEEK:
 			//printf("SYS_SEEK system call!\n");
