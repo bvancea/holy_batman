@@ -217,7 +217,6 @@ thread_create (const char *name, int priority,
 
 #ifdef USERPROG
   /* Initialize the list of open files for the current thread */
-  list_init (&t->files);
   sema_init(&t->wait,0); // initialize semaphore for parent to wait upon
   list_init(&t->children_list); // initialize children list
   if (thread_current() != initial_thread)

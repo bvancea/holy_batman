@@ -105,7 +105,6 @@ struct thread
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
 
-    struct list files;                  /* all opened files */
     struct semaphore wait;
     int retStatus;
     struct thread *parent;

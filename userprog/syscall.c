@@ -32,7 +32,6 @@ static int syscall_exec (const char *);
 /* Helper functions*/
 static bool is_valid_uvaddr (const void *);
 bool is_valid_pointer (const void *usr_ptr);
-bool is_valid_stack(struct intr_frame *f);
 struct file_descriptor * get_open_file(int fd);
 
 
@@ -43,11 +42,6 @@ void syscall_init (void) {
 }
 
 static void syscall_handler(struct intr_frame *f) {
-
-	if (!is_valid_stack(f)) {
-		//TODO replace with exit system call
-		thread_exit();
-	} else {
 		int syscall_no = ((int*) f->esp)[0];
 		
 		/*int argc = ((int*) f->esp)[1];
@@ -119,7 +113,6 @@ static void syscall_handler(struct intr_frame *f) {
 
 
 		thread_exit();
-	}
 }
 
 
@@ -385,19 +378,6 @@ struct file_descriptor * get_open_file(int fd) {
 		}
 	}
 	return NULL;
-}
-
-
-bool is_valid_stack(struct intr_frame *f) {
-	if (!is_valid_pointer(f->esp) ||
-			!is_valid_pointer(f->esp + 1) ||
-			!is_valid_pointer(f->esp + 2) ||
-			!is_valid_pointer(f->esp + 3)) {
-		return false;
-	} else {
-		return true;
-	}
-
 }
 /*
  * Check if a user memory pointer is valid.
