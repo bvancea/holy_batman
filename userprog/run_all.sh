@@ -1,10 +1,9 @@
 cd ../examples &&
 make clean &&
 make &&
+cd ../userprog &&
 make clean &&
 make &&
-cd ../userprog &&
 cd build && 
-pintos --filesys-size=20 -p tests/userprog/write_normal -a bad-read -- -f -q extract run 'write_normal' &&
-#pintos --filesys-size=20 -p ../../examples/my_userprog_test.c -a my_userprog_test -- -f -q extract run 'my_userprog_test' &&
+pintos --filesys-size=20 -p tests/userprog/args-many -a args-many -- -f -q extract run 'args-many a b c d e f g h i j k l m n o p q r s t u v ' &&
 cd ..

@@ -57,57 +57,65 @@ static void syscall_handler(struct intr_frame *f) {
 
 		switch (syscall_no) {
 		case SYS_EXIT:
-			printf("SYS_EXIT system call!\n");
+			//printf("SYS_EXIT system call!\n");
 			thread_exit();
 			break;
 		case SYS_HALT:
-			printf("SYS_HALT system call!\n");
+			//printf("SYS_HALT system call!\n");
 			syscall_halt();
 			break;
 		case SYS_EXEC:
-			printf("SYS_EXEC system call!\n");
+			//printf("SYS_EXEC system call!\n");
 			f->eax = syscall_exec (((char*) f->esp)[1]);
 			return;
 		case SYS_WAIT:
-			printf("SYS_WAIT system call!\n");
+			//printf("SYS_WAIT system call!\n");
 			f->eax = syscall_wait (((int*) f->esp)[1]);
 			break;
 		case SYS_CREATE:
-			printf("SYS_CREATE system call!\n");
+			//printf("SYS_CREATE system call!\n");
 			f->eax = syscall_create (((char*) f->esp)[1], ((unsigned*) f->esp)[1]);
 			return;
 		case SYS_OPEN:
-			printf("SYS_OPEN system call!\n");
+			//printf("SYS_OPEN system call!\n");
 			f->eax = syscall_open (((char*) f->esp)[1]);
 			break;
 		case SYS_FILESIZE:
-			printf("SYS_FILESIZE system call!\n");
-			thread_exit();
+			//printf("SYS_FILESIZE system call!\n");
+			f->eax = syscall_filesize(((int*) f->esp)[1]);
 			break;
 		case SYS_READ:
-			printf("SYS_WRITE system call!\n");
-			f->eax = 0;
+			//printf("SYS_WRITE system call!\n");
+			///int fd = ((int *) f->esp)[1];
+			//void *buffer = (f->esp + 2);
+			//unsigned length =((unsigned *) f->esp)[3];
+			f->eax = syscall_read (((int *) f->esp)[1],(f->esp + 2),((unsigned *) f->esp)[3]);
 			return;
 		case SYS_WRITE:
-			printf("SYS_WRITE system call!\n");
-			int fd = ((int *) f->esp)[1];
-			void *buffer = (f->esp + 2);
-			unsigned length =((unsigned *) f->esp)[3];
-			f->eax = syscall_write (fd,buffer,length);
+			//printf("SYS_WRITE system call!\n");
+			//int fd = ((int *) f->esp)[1];
+			//void *buffer = (f->esp + 2);
+			//unsigned length =((unsigned *) f->esp)[3];
+			f->eax = syscall_write (((int *) f->esp)[1],(f->esp + 2),((unsigned *) f->esp)[3]);
 			return;
 		case SYS_SEEK:
-			printf("SYS_SEEK system call!\n");
-			thread_exit();
+			//printf("SYS_SEEK system call!\n");
+			syscall_seek(((int*) f->esp)[1],((unsigned *) f->esp)[2]);
 			break;
 		case SYS_TELL:
-			printf("SYS_TELL system call!\n");
-			f->eax = 0;
+			f->eax = syscall_tell(((int*) f->esp)[1]);
 			return;
 		case SYS_CLOSE:
-			printf("SYS_CLOSE system call!\n");
-			f->eax = 0;
+			//printf("SYS_CLOSE system call!\n");
+			syscall_close(((int*) f->esp)[1]);
 			return;
+		case SYS_REMOVE:
+			//printf("SYS_CLOSE system call!\n");
+			f->eax = syscall_remove(((char*) f->esp)[1]);
+			return;
+
 		}
+
 
 		thread_exit();
 	}
@@ -126,7 +134,7 @@ static int syscall_write (int fd, const void *buffer, unsigned size) {
 	unsigned buffer_pos = size;
 	void *temp_buffer = buffer;
 
-	/* check the user memory pointing by buffer are valid */
+	/* check the user memory pointing by buffer are valid*/
 	while (temp_buffer != NULL) 	{
 		if (!is_valid_pointer (temp_buffer)) {
 			syscall_exit (-1);
@@ -253,12 +261,12 @@ static int syscall_read (int fd, void *buffer, unsigned size) {
 	struct thread *t = thread_current();
 
 	unsigned buffer_size = size;
-	void * buffer_tmp = buffer;
+	void *buffer_tmp = buffer;
 
 	/* check the user memory pointing by buffer are valid */
 	while (buffer_tmp != NULL) {
 		if (!is_valid_uvaddr(buffer_tmp))
-			exit(-1);
+			syscall_exit(-1);
 
 		/* Advance */
 		if (buffer_size == 0) {
