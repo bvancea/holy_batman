@@ -49,58 +49,58 @@ static void syscall_handler(struct intr_frame *f) {
 		thread_exit();
 	} else {
 		int syscall_no = ((int*) f->esp)[0];
-		/*
-		int argc = ((int*) f->esp)[1];
-		char* argv = ((char*) f->esp)[2];
-		char* command = ((char *) f->esp)[3];
-		printf("%d %d %s %s \n", syscall_no, argc, argv, command);*/
 
+			/*int argc = ((int*) f->esp)[1];
+			char* argv = ((int*) f->esp)[2];
+			char* command = ((int *) f->esp)[3];
+			printf("%d %d %s %s \n", syscall_no, argc, argv, command);
+			*/
 		switch (syscall_no) {
 		case SYS_EXIT:
 			//printf("SYS_EXIT system call!\n");
 			thread_exit();
-			break;
+			return;
 		case SYS_HALT:
 			//printf("SYS_HALT system call!\n");
 			syscall_halt();
-			break;
+			return;
 		case SYS_EXEC:
 			//printf("SYS_EXEC system call!\n");
-			f->eax = syscall_exec (((char*) f->esp)[1]);
+			f->eax = syscall_exec (((int*) f->esp)[1]);
 			return;
 		case SYS_WAIT:
 			//printf("SYS_WAIT system call!\n");
 			f->eax = syscall_wait (((int*) f->esp)[1]);
-			break;
+			return;
 		case SYS_CREATE:
 			//printf("SYS_CREATE system call!\n");
-			f->eax = syscall_create (((char*) f->esp)[1], ((unsigned*) f->esp)[1]);
+			f->eax = syscall_create (((int*) f->esp)[1], ((int*) f->esp)[1]);
 			return;
 		case SYS_OPEN:
-			//printf("SYS_OPEN system call!\n");
-			f->eax = syscall_open (((char*) f->esp)[1]);
-			break;
+			printf("SYS_OPEN system call!\n");
+			f->eax = syscall_open (((int*) f->esp)[1]);
+			return;
 		case SYS_FILESIZE:
 			//printf("SYS_FILESIZE system call!\n");
 			f->eax = syscall_filesize(((int*) f->esp)[1]);
-			break;
+			return;
 		case SYS_READ:
 			//printf("SYS_WRITE system call!\n");
 			///int fd = ((int *) f->esp)[1];
 			//void *buffer = (f->esp + 2);
 			//unsigned length =((unsigned *) f->esp)[3];
-			f->eax = syscall_read (((int *) f->esp)[1],(f->esp + 2),((unsigned *) f->esp)[3]);
+			f->eax = syscall_read (((int *) f->esp)[1],((int *) f->esp)[2],((int *) f->esp)[3]);
 			return;
 		case SYS_WRITE:
 			//printf("SYS_WRITE system call!\n");
 			//int fd = ((int *) f->esp)[1];
 			//void *buffer = (f->esp + 2);
 			//unsigned length =((unsigned *) f->esp)[3];
-			f->eax = syscall_write (((int *) f->esp)[1],(f->esp + 2),((unsigned *) f->esp)[3]);
+			f->eax = syscall_write (((int *) f->esp)[1],((int *) f->esp)[2],((int *) f->esp)[3]);
 			return;
 		case SYS_SEEK:
 			//printf("SYS_SEEK system call!\n");
-			syscall_seek(((int*) f->esp)[1],((unsigned *) f->esp)[2]);
+			syscall_seek(((int*) f->esp)[1],((int *) f->esp)[2]);
 			break;
 		case SYS_TELL:
 			f->eax = syscall_tell(((int*) f->esp)[1]);
@@ -111,12 +111,9 @@ static void syscall_handler(struct intr_frame *f) {
 			return;
 		case SYS_REMOVE:
 			//printf("SYS_CLOSE system call!\n");
-			f->eax = syscall_remove(((char*) f->esp)[1]);
+			f->eax = syscall_remove(((int*) f->esp)[1]);
 			return;
-
 		}
-
-
 		thread_exit();
 	}
 }
@@ -229,10 +226,12 @@ static int syscall_open(const char *file_name) {
 	if (!is_valid_pointer(file_name))
 		syscall_exit(-1);
 
+	//printf("Before lock\n");
 	lock_acquire(&filesys_lock);
 
 	f = filesys_open(file_name);
 	if (f != NULL) {
+		//printf("Inside\n");
 		fd = calloc(1, sizeof *fd);
 		fd->fd_num = allocate_fd();
 		fd->owner = thread_current()->tid;
@@ -241,6 +240,8 @@ static int syscall_open(const char *file_name) {
 		status = fd->fd_num;
 	}
 	lock_release(&filesys_lock);
+
+	//printf("After lock\n");
 	return status;
 }
 

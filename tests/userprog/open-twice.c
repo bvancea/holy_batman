@@ -10,7 +10,9 @@ void
 test_main (void) 
 {
   int h1 = open ("sample.txt");
+  printf("h1 is %d\n", h1);
   int h2 = open ("sample.txt");  
+  printf("h2 is %d\n", h2);
 
   CHECK ((h1 = open ("sample.txt")) > 1, "open \"sample.txt\" once");
   CHECK ((h2 = open ("sample.txt")) > 1, "open \"sample.txt\" again");
