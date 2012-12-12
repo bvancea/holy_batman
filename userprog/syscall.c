@@ -32,7 +32,6 @@ static int syscall_exec (const char *);
 /* Helper functions*/
 static bool is_valid_uvaddr (const void *);
 bool is_valid_pointer (const void *usr_ptr);
-bool is_valid_stack(struct intr_frame *f);
 struct file_descriptor * get_open_file(int fd);
 
 
