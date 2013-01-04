@@ -67,7 +67,7 @@ process_execute (const char *file_name)
 
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (fn, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create_child (fn, file, PRI_DEFAULT, start_process, fn_copy);
 
 
 

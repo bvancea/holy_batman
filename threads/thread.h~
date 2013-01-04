@@ -121,7 +121,7 @@ struct thread
 struct thread_extra_details
 {
   struct list_elem elem;
-  int tid;
+  int thread_id;
   bool is_alive;
   struct semaphore *wait_sema;
   int exit_status;

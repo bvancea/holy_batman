@@ -57,7 +57,7 @@ static void syscall_handler(struct intr_frame *f) {
 		switch (syscall_no) {
 		case SYS_EXIT:
 			//printf("SYS_EXIT system call!\n");
-			syscall_exit(((int*) f->esp)[1]);
+			syscall_exit();
 			return;
 		case SYS_HALT:
 			//printf("SYS_HALT system call!\n");

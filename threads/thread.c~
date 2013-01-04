@@ -608,6 +608,7 @@ allocate_tid (void)
 	    details->wait_sema = (struct semaphore *)malloc(sizeof(struct semaphore));
 	    sema_init(details->wait_sema, 0);
 	    list_insert(list_begin(&extra_list), &details->elem);
+	    printf("extra structure allocated for thread\n");
 	  }
   }
   lock_release (&tid_lock);
