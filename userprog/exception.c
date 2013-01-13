@@ -4,12 +4,17 @@
 #include "userprog/gdt.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "threads/vaddr.h"
+#include "userprog/pagedir.h"
+#include "vm/page.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
 static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
+/* exit with status -1 for invalid addresses */
+static void exit (int);
 
 /* Registers handlers for interrupts that can be caused by user
    programs.
@@ -126,6 +131,8 @@ page_fault (struct intr_frame *f)
   bool write;        /* True: access was write, false: access was read. */
   bool user;         /* True: access by user, false: access by kernel. */
   void *fault_addr;  /* Fault address. */
+  struct suppl_pte *spte;
+  struct thread *cur = thread_current ();
 
   /* Obtain faulting address, the virtual address that was
      accessed to cause the fault.  It may point to code or to
@@ -148,14 +155,60 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  /* To implement virtual memory, delete the rest of the function
-     body, and replace it with code that brings in the page to
-     which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
-  kill (f);
+  /* if the page fault it caused by a write violation, exit the process*/
+  if (!not_present)
+    exit (-1);
+  
+  if (fault_addr == NULL || !not_present || !is_user_vaddr(fault_addr))
+    exit (-1);
+  
+  spte = get_suppl_pte (&cur->suppl_page_table, pg_round_down(fault_addr));
+  if (spte != NULL && !spte->is_loaded)
+    load_page (spte);
+  else if (spte == NULL && fault_addr >= (f->esp - 32) && 
+	   (PHYS_BASE - pg_round_down (fault_addr)) <= STACK_SIZE)
+    grow_stack (fault_addr);
+  else
+    {
+      if (!pagedir_get_page (cur->pagedir, fault_addr))
+	exit (-1);
+      
+      /* To implement virtual memory, delete the rest of the function
+	 body, and replace it with code that brings in the page to
+	 which fault_addr refers. */
+      printf ("Page fault at %p: %s error %s page in %s context.\n",
+	      fault_addr,
+	      not_present ? "not present" : "rights violation",
+	      write ? "writing" : "reading",
+	      user ? "user" : "kernel");
+      kill (f);
+    }
 }
 
+/* This function is exactly the same as the exit system call inside
+ * syscall.c. Putting here for better logical structure.
+ */
+void
+exit (int status)
+{
+  struct child_status *child;
+  struct thread *cur = thread_current ();
+  printf ("%s: exit(%d)\n", cur->name, status);
+  struct thread *parent = thread_get_by_id (cur->parent_id);
+  if (parent != NULL) 
+    {
+      struct list_elem *e = list_tail(&parent->children);
+      while ((e = list_prev (e)) != list_head (&parent->children))
+        {
+          child = list_entry (e, struct child_status, elem_child_status);
+          if (child->child_id == cur->tid)
+          {
+            lock_acquire (&parent->lock_child);
+            child->is_exit_called = true;
+            child->child_exit_status = status;
+            lock_release (&parent->lock_child);
+          }
+        }
+    }
+  thread_exit ();
+}
