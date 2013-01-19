@@ -11,7 +11,7 @@
 
 static bool load_page_file (struct suppl_pte *);
 static bool load_page_swap (struct suppl_pte *);
-static bool load_page_mmf (struct suppl_pte *);
+static bool load_page_mem_mapped (struct suppl_pte *);
 static void free_suppl_pte (struct hash_elem *, void * UNUSED);
 
 /* init the supplemental page table and neccessary data structure */
@@ -70,7 +70,7 @@ load_page (struct suppl_pte *spte)
       break;
     case MMF:
     case MMF | SWAP:
-      success = load_page_mmf (spte);
+      success = load_page_mem_mapped (spte);
       break;
     case FILE | SWAP:
     case SWAP:
@@ -121,9 +121,11 @@ load_page_file (struct suppl_pte *spte)
 }
 
 
-/* Load a mmf page whose details are defined in struct suppl_pte */
+/* Load a mmf page whose details are defined in struct suppl_pte.
+  Added by Victor
+ */
 static bool
-load_page_mmf (struct suppl_pte *spte)
+load_page_mem_mapped (struct suppl_pte *spte)
 {
   struct thread *cur = thread_current ();
 
@@ -288,8 +290,9 @@ suppl_pt_insert_mmf (struct file *file, off_t ofs, uint8_t *upage,
 }
 
 /* Given a suppl_pte struct spte, write data at address spte->uvaddr to
- * file. It is required if a page is dirty */
-void write_page_back_to_file_wo_lock (struct suppl_pte *spte)
+ * file. It is required if a page is dirty.
+   Added by Victor */
+void write_back_dirty_mmf_page (struct suppl_pte *spte)
 {
   if (spte->type == MMF)
     {

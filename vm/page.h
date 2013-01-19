@@ -85,7 +85,7 @@ struct suppl_pte *get_suppl_pte (struct hash *, void *);
 
 /* Given a suppl_pte struct spte, write data at address spte->uvaddr to
  * file. It is required if a page is dirty */
-void write_page_back_to_file_wo_lock (struct suppl_pte *);
+void write_back_dirty_mmf_page (struct suppl_pte *);
 
 /* Free the given supplimental page table, which is a hash table */
 void free_suppl_pt (struct hash *);

@@ -15,12 +15,12 @@
                                    / (FRACTION))
 #define ADD(x, y) (x) + (y)
 #define SUB(x, y) (x) - (y)
-#define ADD_INT(x, n) (x) + (n) * (FRACTION)
-#define SUB_INT(x, n) (x) - (n) * (FRACTION)
-#define MULTIPLE(x, y) ((int64_t)(x)) * (y) / (FRACTION)
-#define MULT_INT(x, n) (x) * (n)
-#define DIVIDE(x, y) ((int64_t)(x)) * (FRACTION) / (y)
-#define DIV_INT(x, n) (x) / (n)
+#define ADD_INTEGER(x, n) (x) + (n) * (FRACTION)
+#define SUB_INTEGER(x, n) (x) - (n) * (FRACTION)
+#define MULT(x, y) ((int64_t)(x)) * (y) / (FRACTION)
+#define MULT_INTEGER(x, n) (x) * (n)
+#define DIV(x, y) ((int64_t)(x)) * (FRACTION) / (y)
+#define DIV_INTEGER(x, n) (x) / (n)
 
 #endif
 /* <## */

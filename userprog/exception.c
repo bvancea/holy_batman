@@ -187,7 +187,7 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-  /* if the page fault it caused by a write violation, exit the process*/
+  /* if the page fault is caused by a write violation, exit the process*/
   if (!not_present) {
     exit (-1);
   }
@@ -196,8 +196,10 @@ page_fault (struct intr_frame *f)
     exit (-1);
   }
   
+  // If page fault is caused by accessing a lazy-loaded page, load page into memory. Added by Victor
   spte = get_suppl_pte (&cur->suppl_page_table, pg_round_down(fault_addr));
   if (spte != NULL && !spte->is_loaded) {
+    // Entry is valid, but not yet loaded.
     load_page (spte);
   } else if (spte == NULL && fault_addr >= (f->esp - 32) && (PHYS_BASE - pg_round_down (fault_addr)) <= STACK_SIZE) {
 	  /*

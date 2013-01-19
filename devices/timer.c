@@ -201,17 +201,17 @@ timer_interrupt (struct intr_frame *args UNUSED)
       cur = thread_current ();
       if (cur->status == THREAD_RUNNING)
         {
-          cur->recent_cpu = ADD_INT (cur->recent_cpu, 1);
+          cur->recent_cpu = ADD_INTEGER (cur->recent_cpu, 1);
         }
       if (ticks % TIMER_FREQ == 0)
         {
-          calculate_load_avg ();
+          compute_load_average ();
           /* recent_cpu depends on load_avg */
-          calculate_recent_cpu_for_all ();
+          compute_recent_cpu_for_all ();
         }
       if (ticks % 4 == 0)
         {
-          calculate_advanced_priority_for_all ();
+          compute_mlfq_priority_for_all ();
         }
     }
 }

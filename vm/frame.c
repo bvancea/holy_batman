@@ -195,14 +195,14 @@ static bool save_evicted_frame (struct frame_struct *vf) {
 
 	size_t swap_slot_idx;
 	/*
-	 * If we're dealing with a MMF file that was modified, rewrite it on its corresponding file.
+	 * Check if it is a mmf page that has modifications, if so - write back to file.
 	 *
 	 * If its some other type of page, swap it out.
 	 *
 	 * Clean pages are swapped out without other actions.
 	 */
 	if (pagedir_is_dirty (t->pagedir, spte->uvaddr)  && (spte->type == MMF)) {
-		write_page_back_to_file_wo_lock (spte);
+		write_back_dirty_mmf_page (spte);
 	} else if (pagedir_is_dirty (t->pagedir, spte->uvaddr) || (spte->type != FILE)) {
 		swap_slot_idx = vm_swap_out (spte->uvaddr);
 		if (swap_slot_idx == SWAP_ERROR) {
