@@ -14,14 +14,14 @@ static bool load_page_swap (struct suppl_pte *);
 static bool load_page_mem_mapped (struct suppl_pte *);
 static void free_suppl_pte (struct hash_elem *, void * UNUSED);
 
-/* init the supplemental page table and neccessary data structure */
+// init the supplemental page table
 void 
 vm_page_init (void)
 {
   return;
 }
 
-/* Functionality required by hash table*/
+/* Required by hash table */
 unsigned
 suppl_pt_hash (const struct hash_elem *he, void *aux UNUSED)
 {
@@ -30,7 +30,7 @@ suppl_pt_hash (const struct hash_elem *he, void *aux UNUSED)
   return hash_bytes (&vspte->uvaddr, sizeof vspte->uvaddr);
 }
 
-/* Functionality required by hash table*/
+/* Required by hash table */
 bool
 suppl_pt_less (const struct hash_elem *hea,
                const struct hash_elem *heb,
@@ -58,13 +58,12 @@ get_suppl_pte (struct hash *ht, void *uvaddr)
   return e != NULL ? hash_entry (e, struct suppl_pte, elem) : NULL;
 }
 
-/* Load page data to the page defined in struct suppl_pte. */
+// Load page data to the page defined in struct suppl_pte.
 bool
 load_page (struct suppl_pte *spte)
 {
   bool success = false;
-  switch (spte->type)
-    {
+  switch (spte->type) {
     case FILE:
       success = load_page_file (spte);
       break;
@@ -78,12 +77,12 @@ load_page (struct suppl_pte *spte)
       break;
     default:
       break;
-    }
+  }
+  
   return success;
 }
 
-/* Load page data to the page defined in struct suppl_pte from the given file
-   in struct suppl_pte */
+// Load page data to the page defined in struct suppl_pte from the given file.
 static bool
 load_page_file (struct suppl_pte *spte)
 {
@@ -91,30 +90,26 @@ load_page_file (struct suppl_pte *spte)
   
   file_seek (spte->data.file_page.file, spte->data.file_page.ofs);
 
-  /* Get a page of memory. */
+  // get a page of memory
   uint8_t *kpage = allocate_frame (PAL_USER);
   if (kpage == NULL)
     return false;
   
-  /* Load this page. */
-  if (file_read (spte->data.file_page.file, kpage,
-		 spte->data.file_page.read_bytes)
-      
-      != (int) spte->data.file_page.read_bytes)
-    {
-      free_frame (kpage);
-      return false; 
-    }
-  memset (kpage + spte->data.file_page.read_bytes, 0,
-	  spte->data.file_page.zero_bytes);
+  // load this page
+  if (file_read (spte->data.file_page.file, kpage, spte->data.file_page.read_bytes)      
+        != (int) spte->data.file_page.read_bytes) {
+    free_frame (kpage);
+    return false; 
+  }
   
-  /* Add the page to the process's address space. */
-  if (!pagedir_set_page (cur->pagedir, spte->uvaddr, kpage,
-			 spte->data.file_page.writable))
-    {
-      free_frame (kpage);
-      return false; 
-    }
+  memset (kpage + spte->data.file_page.read_bytes, 0, spte->data.file_page.zero_bytes);
+  
+  // add the page to the process's address space
+  if (!pagedir_set_page (cur->pagedir, spte->uvaddr, kpage, spte->data.file_page.writable)) {
+    free_frame (kpage);
+    
+    return false; 
+  }
   
   spte->is_loaded = true;
   return true;
@@ -131,28 +126,25 @@ load_page_mem_mapped (struct suppl_pte *spte)
 
   file_seek (spte->data.mmf_page.file, spte->data.mmf_page.ofs);
 
-  /* Get a page of memory. */
+  // get a page of memory
   uint8_t *kpage = allocate_frame (PAL_USER);
   if (kpage == NULL)
     return false;
 
-  /* Load this page. */
-  if (file_read (spte->data.mmf_page.file, kpage,
-		 spte->data.mmf_page.read_bytes)
-      != (int) spte->data.mmf_page.read_bytes)
-    {
-      free_frame (kpage);
-      return false; 
-    }
-  memset (kpage + spte->data.mmf_page.read_bytes, 0,
-	  PGSIZE - spte->data.mmf_page.read_bytes);
+  // load this page
+  if (file_read (spte->data.mmf_page.file, kpage, spte->data.mmf_page.read_bytes)
+        != (int) spte->data.mmf_page.read_bytes) {
+    free_frame (kpage);
+    
+    return false; 
+  }
+  memset (kpage + spte->data.mmf_page.read_bytes, 0, PGSIZE - spte->data.mmf_page.read_bytes);
 
-  /* Add the page to the process's address space. */
-  if (!pagedir_set_page (cur->pagedir, spte->uvaddr, kpage, true)) 
-    {
-      free_frame (kpage);
-      return false; 
-    }
+  // add the page to the process's address space
+  if (!pagedir_set_page (cur->pagedir, spte->uvaddr, kpage, true)) {
+    free_frame (kpage);
+    return false; 
+  }
 
   spte->is_loaded = true;
   if (spte->type & SWAP)
@@ -161,48 +153,45 @@ load_page_mem_mapped (struct suppl_pte *spte)
   return true;
 }
 
-/* Load a zero page whose details are defined in struct suppl_pte */
+// load a zero page whose details are defined in struct suppl_pte
 static bool
 load_page_swap (struct suppl_pte *spte)
 {
-  /* Get a page of memory. */
+  // get a page of memory
   uint8_t *kpage = allocate_frame (PAL_USER);
   if (kpage == NULL)
     return false;
  
-  /* Map the user page to given frame */
-  if (!pagedir_set_page (thread_current ()->pagedir, spte->uvaddr, kpage, 
-			 spte->swap_writable))
-    {
-      free_frame (kpage);
-      return false;
-    }
+  // map the user page to given frame
+  if (!pagedir_set_page (thread_current ()->pagedir, spte->uvaddr, kpage, spte->swap_writable)) {
+    free_frame (kpage);
+    
+    return false;
+  }
  
-  /* Swap data from disk into memory page */
+  // swap data from disk into memory page
   vm_swap_in (spte->swap_slot_idx, spte->uvaddr);
 
-  if (spte->type == SWAP)
-    {
-      /* After swap in, remove the corresponding entry in suppl page table */
-      hash_delete (&thread_current ()->suppl_page_table, &spte->elem);
-    }
-  if (spte->type == (FILE | SWAP))
-    {
-      spte->type = FILE;
-      spte->is_loaded = true;
-    }
+  if (spte->type == SWAP) {
+    // after swap in, remove the corresponding entry in suppl page table
+    hash_delete (&thread_current ()->suppl_page_table, &spte->elem);
+  }
+  
+  if (spte->type == (FILE | SWAP)) {
+    spte->type = FILE;
+    spte->is_loaded = true;
+  }
 
   return true;
 }
 
-/* Free the given supplimental page table, which is a hash table */
+// free the given supplimental page table, which is a hash table
 void free_suppl_pt (struct hash *suppl_pt) 
 {
   hash_destroy (suppl_pt, free_suppl_pte);
 }
 
-/* Free supplemental page entry represented by the given hash element in
-   hash table */
+// free supplemental page entry represented by the given hash element in hash table
 static void
 free_suppl_pte (struct hash_elem *e, void *aux UNUSED)
 {
@@ -214,7 +203,7 @@ free_suppl_pte (struct hash_elem *e, void *aux UNUSED)
   free (spte);
 }
 
-/* insert the given suppl pte */
+// insert the given suppl pte
 bool 
 insert_suppl_pte (struct hash *spt, struct suppl_pte *spte)
 {
@@ -231,7 +220,7 @@ insert_suppl_pte (struct hash *spt, struct suppl_pte *spte)
 }
 
 
-/* Add an file suplemental page entry to supplemental page table */
+// add an file suplemental page entry to supplemental page table
 bool
 suppl_pt_insert_file (struct file *file, off_t ofs, uint8_t *upage, 
 		      uint32_t read_bytes, uint32_t zero_bytes, bool writable)
@@ -261,7 +250,7 @@ suppl_pt_insert_file (struct file *file, off_t ofs, uint8_t *upage,
   return true;
 }
 
-/* Add an file suplemental page entry to supplemental page table */
+// add an file suplemental page entry to supplemental page table
 bool
 suppl_pt_insert_mmf (struct file *file, off_t ofs, uint8_t *upage, 
 		      uint32_t read_bytes)

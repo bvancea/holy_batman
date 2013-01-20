@@ -9,13 +9,7 @@
 #include "lib/kernel/hash.h"
 #include "filesys/file.h"
 
-/* *****************************************************
- * This file is about supplemental page table management
- *******************************************************/
-
-/* Data Definition */
-
-/* The lowest bit indicate whether the page has been swapped out */
+/* The lowest bit indicates whether the page has been swapped out */
 enum suppl_pte_type
 {
   SWAP = 001,
@@ -42,15 +36,15 @@ union suppl_pte_data
   } mmf_page;
 };
 
-/* supplemental page table entry */
+// Supplemental page table entry
 struct suppl_pte
 {
-  void *uvaddr;   //user virtual address as the unique identifier of a page
+  void *uvaddr;   // unique identifier of a page
   enum suppl_pte_type type;
   union suppl_pte_data data;
   bool is_loaded;
 
-  /* reserved for possible swapping */
+  // reserved for swapping
   size_t swap_slot_idx;
   bool swap_writable;
 
@@ -80,7 +74,7 @@ bool suppl_pt_insert_file ( struct file *, off_t, uint8_t *,
 bool suppl_pt_insert_mmf (struct file *, off_t, uint8_t *, uint32_t);
 
 /* Given hash table and its key which is a user virtual address, find the
- * corresponding hash element*/
+ * corresponding hash element */
 struct suppl_pte *get_suppl_pte (struct hash *, void *);
 
 /* Given a suppl_pte struct spte, write data at address spte->uvaddr to
