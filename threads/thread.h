@@ -155,7 +155,7 @@ struct thread
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
 
-    int64_t sleep_ticks;                 /* For alarm-clock */
+    int64_t sleep_ticks;                 // For sleeping
 
     /* Keep track of a thread's priority before a donation */
     int original_priority;

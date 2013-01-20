@@ -182,19 +182,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
   ticks++;
   thread_tick ();
 
-  /* ##> Our implementation */
-  /* Each time a timer interrupt occurs, recent_cpu is incremented by 1 for
-   * the running thread only, unless the idle thread is running.
-   *
-   * Assumptions made by some of the tests require that these recalculations of
-   * recent_cpu be made exactly when the system tick counter reaches a multiple
-   * of a second, that is, when timer_ticks () % TIMER_FREQ == 0, and not at
-   * any other time.
-   *
-   * Because of assumptions made by some of the tests, load_avg must be updated
-   * exactly when the system tick counter reaches a multiple of a second, that
-   * is, when timer_ticks () % TIMER_FREQ == 0, and not at any other time.
-   */
+
   if (thread_mlfqs)
     {
       struct thread *cur;
