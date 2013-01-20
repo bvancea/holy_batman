@@ -516,12 +516,10 @@ thread_foreach (thread_action_func *func, void *aux)
 
   ASSERT (intr_get_level () == INTR_OFF);
 
-  for (e = list_begin (&all_list); e != list_end (&all_list);
-       e = list_next (e))
-    {
-      struct thread *t = list_entry (e, struct thread, allelem);
-      func (t, aux);
-    }
+  for (e = list_begin (&all_list); e != list_end (&all_list); e = list_next (e)) {
+    struct thread *t = list_entry (e, struct thread, allelem);
+    func (t, aux);
+  }
 }
 
 /*
@@ -595,54 +593,46 @@ void thread_set_priority_helper (struct thread *cur, int new_priority, bool is_d
 	intr_set_level (old_level);
 }
 
-/* Calculate BSD scheduling priority */
+/* Compute scheduling priority */
 void
 thread_compute_mlfq_priority (void)
 {
   compute_mlfq_priority (thread_current (), NULL);
 }
 
-/* Calculate priority for all threads in all_list.
- *  It is also recalculated once every fourth clock tick, for every thread.
- */
+/* Compute priority for all threads in all_list. */
 void
 compute_mlfq_priority_for_all (void)
 {
   thread_foreach (compute_mlfq_priority, NULL);
-  /* resort ready_list */
-  if (!list_empty (&ready_list))
-    {
-      list_sort (&ready_list, priority_more, NULL);
-    }
+
+  if (!list_empty (&ready_list)) {
+    list_sort (&ready_list, priority_more, NULL);
+  }
 }
 
-/* Calculate advanced priority.
- * Thread priority is calculated initially at thread initialization.
- * It is also recalculated once every fourth clock tick, for every thread.
- * In either case, it is determined by the formula
+/* Compute advanced priority.
+ *
+ * Thread priority is computed initially at thread initialization.
+ * It is recomputed once every fourth clock tick, for every thread.
+ *
  * priority = PRI_MAX - (recent_cpu / 4) - (nice * 2)
  */
 void
 compute_mlfq_priority (struct thread *cur, void *aux UNUSED)
 {
   ASSERT (is_thread (cur));
-  if (cur != idle_thread)
-    {
-      /* convert to integer nearest for (recent_cpu / 4) instead
-       * of the whole priority.
-       */
-      cur->priority = PRI_MAX -
-        CONVERT_TO_INT_NEAREST (DIV_INTEGER (cur->recent_cpu, 4)) -  cur->nice * 2;
-      /* Make sure it falls in the priority boundry */
-      if (cur->priority < PRI_MIN)
-        {
-          cur->priority = PRI_MIN;
-        }
-      else if (cur->priority > PRI_MAX)
-        {
-          cur->priority = PRI_MAX;
-        }
+  
+  if (cur != idle_thread) {
+    cur->priority = PRI_MAX - CONVERT_TO_INT_NEAREST (DIV_INTEGER (cur->recent_cpu, 4)) -  cur->nice * 2;
+
+    // Check if the value is valid and adjust it if needed
+    if (cur->priority < PRI_MIN) {
+      cur->priority = PRI_MIN;
+    } else if (cur->priority > PRI_MAX) {
+      cur->priority = PRI_MAX;
     }
+  }
 }
 
 /* Calculate recent_cpu for a thread */
@@ -661,47 +651,27 @@ compute_recent_cpu_for_all (void)
   thread_foreach (compute_recent_cpu, NULL);
 }
 
-/* Calculate recent_cpu
- * recent_cpu = (2*load_avg)/(2*load_avg + 1) * recent_cpu + nice
- * Assumptions made by some of the tests require that these recalculations
- * of recent_cpu be made exactly when the system tick counter reaches a
- * multiple of a second, that is, when timer_ticks () % TIMER_FREQ == 0,
- * and not at any other time.
+/* Compute recent_cpu
  *
- * The value of recent_cpu can be negative for a thread with a negative nice
- * value. Do not clamp negative recent_cpu to 0.
-
- * You may need to think about the order of calculations in this formula.
- * We recommend computing the coefficient of recent_cpu first, then
- * multiplying. Some students have reported that multiplying load_avg by
- * recent_cpu directly can cause overflow.
+ * recent_cpu = (2*load_avg)/(2*load_avg + 1) * recent_cpu + nice
  */
 void
 compute_recent_cpu (struct thread *cur, void *aux UNUSED)
 {
   ASSERT (is_thread (cur));
-  if (cur != idle_thread)
-    {
-      /* load_avg and recent_cpu are fixed-point numbers */
-      int load = MULT_INTEGER (load_avg, 2);
-      int coefficient = DIV (load, ADD_INTEGER (load, 1));
-      cur->recent_cpu = ADD_INTEGER (MULT (coefficient, cur->recent_cpu),
-                                 cur->nice);
-    }
+  
+  if (cur != idle_thread) {
+    int load = MULT_INTEGER (load_avg, 2);
+    int coefficient = DIV (load, ADD_INTEGER (load, 1));
+    cur->recent_cpu = ADD_INTEGER (MULT (coefficient, cur->recent_cpu), cur->nice);
+  }
 }
 
-/* Calculate load_avg.
- * load_avg, often known as the system load average, estimates the average
- * number of threads ready to run over the past minute. Like recent_cpu, it is
- * an exponentially weighted moving average. Unlike priority and recent_cpu,
- * load_avg is system-wide, not thread-specific. At system boot, it is
- * initialized to 0. Once per second thereafter, it is updated according to
- * the following formula:
+/* Compute load_avg.
+ *
  * load_avg = (59/60)*load_avg + (1/60)*ready_threads
- * where ready_threads is the number of threads that are either running or
- * ready to run at time of update (not including the idle thread).
-
- * Because of assumptions made by some of the tests, load_avg must be updated
+ *
+ * Based on the provided tests by the Pintos team, load_avg must be updated
  * exactly when the system tick counter reaches a multiple of a second, that
  * is, when timer_ticks () % TIMER_FREQ == 0, and not at any other time.
  */
@@ -717,10 +687,10 @@ compute_load_average (void)
 
   nr_of_ready_threads = nr_of_ready_list_threads;
   
-  if (cur != idle_thread)
-    {
+  if (cur != idle_thread) {
       nr_of_ready_threads++;
-    }
+  }
+  
   load_avg = MULT (DIV_INTEGER (CONVERT_TO_FP (59), 60), load_avg) +
     MULT_INTEGER (DIV_INTEGER (CONVERT_TO_FP (1), 60), nr_of_ready_threads);
 }
@@ -746,32 +716,25 @@ thread_set_nice (int new_nice)
   cur->nice = new_nice;
 
   thread_compute_mlfq_priority ();
+  
   /* If the current thread's status is THREAD_READY, then just reinsert it
    * to the ready_list in order to keep the ready_list in order; if its status
    * is THREAD_RUNNING, then compare its priority with the largest one's
    * priority in the ready_list: if the current one's is smaller, then yields
    * the CPU.
    */
-  if (cur != idle_thread)
-    {
-      if (cur->status == THREAD_READY)
-        {
-          enum intr_level old_level;
-          old_level = intr_disable ();
-          list_remove (&cur->elem);
-          list_insert_ordered (&ready_list, &cur->elem, priority_more, NULL);
-          intr_set_level (old_level);
-        }
-      else if (cur->status == THREAD_RUNNING &&
-               list_entry (list_begin (&ready_list),
-                           struct thread,
-                           elem
-                           )->priority > cur->priority
-               )
-        {
-          thread_yield_current (cur);
-        }
-    }
+  if (cur != idle_thread) {
+    if (cur->status == THREAD_READY) {
+        enum intr_level old_level;
+        old_level = intr_disable ();
+        list_remove (&cur->elem);
+        list_insert_ordered (&ready_list, &cur->elem, priority_more, NULL);
+        intr_set_level (old_level);
+    } else if (cur->status == THREAD_RUNNING && list_entry (list_begin (&ready_list),
+      struct thread, elem)->priority > cur->priority) {
+        thread_yield_current (cur);
+      }
+  }
 }
 
 /* Returns the current thread's nice value. */
@@ -792,8 +755,7 @@ thread_get_load_avg (void)
 int
 thread_get_recent_cpu (void) 
 {
-  return CONVERT_TO_INT_NEAREST (MULT_INTEGER (thread_current ()->recent_cpu,
-                                           100));
+  return CONVERT_TO_INT_NEAREST (MULT_INTEGER (thread_current ()->recent_cpu, 100));
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -884,25 +846,24 @@ init_thread (struct thread *t, const char *name, int priority)
   t->current_priority_donated = false;
   list_init (&t->locks);
   t->blocked_by = NULL;
-  if (thread_mlfqs)
-    {
-      /* The initial thread starts with a nice value of zero. Other threads
-       * start with a nice value inherited from their parent thread
-       */
+  
+  if (thread_mlfqs) {
+    if (t == initial_thread) {
       /* The initial value of recent_cpu is 0 in the first thread created,
        * or the parent's value in other new threads.
        */
-      if (t == initial_thread)
-        {
-          t->nice = NICE_DEFAULT;
-          t->recent_cpu = RECENT_CPU_BEGIN;
-        }
-      else
-        {
-          t->nice = thread_get_nice ();
-          t->recent_cpu = thread_get_recent_cpu ();
-        }
+      t->nice = NICE_DEFAULT;
+      
+      /* The initial thread starts with a nice value of zero. Other threads
+       * start with a nice value inherited from their parent thread
+       */
+      t->recent_cpu = RECENT_CPU_BEGIN;
+    } else {
+      t->nice = thread_get_nice ();
+      t->recent_cpu = thread_get_recent_cpu ();
     }
+  }
+  
   t->magic = THREAD_MAGIC;
 
 #ifdef USERPROG
